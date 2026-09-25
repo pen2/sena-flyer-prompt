@@ -57,10 +57,19 @@ body,.app-shell{background:#f4f8fe}
 .node-root>.node-body{margin-left:0;border-left:0;padding-left:12px;padding-right:12px}
 .node-root>.value-wrap{padding-left:12px}
 .node-root>.node-body>.node>.node-header{background:#f1f8ff}
+/* Fade section headers into the editing area instead of drawing a line against the input border. */
+.node-root>.node-header,.node-body>.node>.node-header,.node-root>.node-body>.node>.node-header{
+  border-bottom:0;
+  background-image:linear-gradient(to bottom,transparent calc(100% - 10px),#fff);
+}
+.node-root>.value-wrap,.node-body>.node>.value-wrap{padding-top:4px}
 @media(max-width:680px){
   :root,body{background:#071d36}
   .app-shell{background:#f4f8fe}
   .hero{padding-top:calc(18px + env(safe-area-inset-top))}
   .node-root>.node-body{padding-left:7px;padding-right:7px}
   .node-root>.value-wrap{padding-left:7px}
+  /* iPhone Safari zooms the page when a small form control receives focus. */
+  .value-input,.key-input,.add-key,.type-select,.import-dialog textarea{font-size:16px}
+  .type-select{max-width:100%}
 }
