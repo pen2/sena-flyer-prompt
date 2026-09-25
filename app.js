@@ -41,6 +41,9 @@ const DEFAULT_DATA = {
   ]
 };
 
+const ROOT_KEYS = Object.keys(DEFAULT_DATA);
+const ROOT_TYPES = Object.fromEntries(ROOT_KEYS.map(key => [key, typeOf(DEFAULT_DATA[key])]));
+
 const STORAGE_KEY = 'sena-flyer-prompt:document:v1';
 const editor = document.querySelector('#editor');
 const output = document.querySelector('#json-output');
@@ -57,7 +60,16 @@ const undoButtons = [document.querySelector('#undo-button'), document.querySelec
 
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved !== null) data = JSON.parse(saved);
+  if (saved !== null) {
+    const parsed = JSON.parse(saved);
+    if (typeOf(parsed) === 'object') {
+      const extras = Object.keys(parsed).filter(key => !ROOT_KEYS.includes(key));
+      data = Object.fromEntries([
+        ...ROOT_KEYS.map(key => [key, Object.hasOwn(parsed, key) ? parsed[key] : structuredClone(DEFAULT_DATA[key])]),
+        ...extras.map(key => [key, parsed[key]])
+      ]);
+    }
+  }
 } catch {
   status.textContent = 'ブラウザ保存を利用できません。コピーして控えてください。';
 }
@@ -66,6 +78,17 @@ function typeOf(value) {
   if (value === null) return 'null';
   if (Array.isArray(value)) return 'array';
   return typeof value;
+}
+
+function fixedRootData(value) {
+  if (typeOf(value) !== 'object') throw new Error('一番外側は { } で囲まれたJSONオブジェクトにしてください。');
+  const keys = Object.keys(value);
+  const missing = ROOT_KEYS.filter(key => !Object.hasOwn(value, key));
+  const extra = keys.filter(key => !ROOT_KEYS.includes(key));
+  if (missing.length || extra.length) throw new Error(`上位項目は「${ROOT_KEYS.join('」「')}」の6つにしてください。${missing.length ? ` 不足: ${missing.join('、')}` : ''}${extra.length ? ` 追加項目: ${extra.join('、')}` : ''}`);
+  const wrongType = ROOT_KEYS.find(key => typeOf(value[key]) !== ROOT_TYPES[key]);
+  if (wrongType) throw new Error(`「${wrongType}」は${ROOT_TYPES[wrongType] === 'array' ? 'リスト' : ROOT_TYPES[wrongType] === 'object' ? '項目のまとまり' : '文字'}にしてください。`);
+  return Object.fromEntries(ROOT_KEYS.map(key => [key, value[key]]));
 }
 
 function emptyValue(type, exemplar) {
@@ -260,6 +283,7 @@ function move(path, direction) {
 
 function renderNode(value, path, label, depth, isRoot = false) {
   const type = typeOf(value);
+  const fixedRoot = depth === 1 && ROOT_KEYS.includes(path[0]);
   const container = element('div', `node node-${type}${isRoot ? ' node-root' : ''}`);
   const header = element('div', 'node-header');
   container.append(header);
@@ -277,6 +301,7 @@ function renderNode(value, path, label, depth, isRoot = false) {
   }
 
   if (isRoot) header.append(element('span', 'node-title', 'プロンプト全体'));
+  else if (fixedRoot) header.append(element('span', 'node-title fixed-title', label));
   else if (typeof path.at(-1) === 'string') {
     const keyEditor = element('label', 'key-editor');
     const keyInput = element('input', 'key-input');
@@ -301,7 +326,11 @@ function renderNode(value, path, label, depth, isRoot = false) {
     header.append(element('span', 'node-count', `${count}${type === 'array' ? '件' : '項目'}`));
   }
 
-  if (!isRoot) {
+  if (depth === 1 && !fixedRoot) {
+    const actions = element('div', 'node-actions');
+    actions.append(action('削除', `${label}を削除`, () => remove(path), true));
+    header.append(actions);
+  } else if (depth > 1) {
     const actions = element('div', 'node-actions');
     const parent = getAt(path.slice(0, -1));
     const position = Array.isArray(parent) ? path.at(-1) : Object.keys(parent).indexOf(path.at(-1));
@@ -325,19 +354,21 @@ function renderNode(value, path, label, depth, isRoot = false) {
       const entries = type === 'array' ? value.map((item, index) => [index, item]) : Object.entries(value);
       entries.forEach(([key, child]) => body.append(renderNode(child, [...path, key], type === 'array' ? `${key + 1}番目` : key, depth + 1)));
       if (entries.length === 0) body.append(element('p', 'empty-hint', 'まだ中身がありません。下から追加できます。'));
-      const add = element('div', 'add-row');
-      const defaultType = type === 'array' && value.length ? typeOf(value[0]) : 'string';
-      const typeSelect = selectType(defaultType);
-      let keyInput;
-      if (type === 'object') {
-        keyInput = element('input', 'add-key');
-        keyInput.placeholder = '新しい項目名';
-        keyInput.setAttribute('aria-label', '新しい項目名');
-        add.append(keyInput);
+      if (!isRoot) {
+        const add = element('div', 'add-row');
+        const defaultType = type === 'array' && value.length ? typeOf(value[0]) : 'string';
+        const typeSelect = selectType(defaultType);
+        let keyInput;
+        if (type === 'object') {
+          keyInput = element('input', 'add-key');
+          keyInput.placeholder = '新しい項目名';
+          keyInput.setAttribute('aria-label', '新しい項目名');
+          add.append(keyInput);
+        }
+        add.append(typeSelect);
+        add.append(action('＋ 追加', '項目を追加', () => addChild(path, typeSelect.value, keyInput)));
+        body.append(add);
       }
-      add.append(typeSelect);
-      add.append(action('＋ 追加', '項目を追加', () => addChild(path, typeSelect.value, keyInput)));
-      body.append(add);
       container.append(body);
     }
   } else {
@@ -376,7 +407,7 @@ function renderNode(value, path, label, depth, isRoot = false) {
       input.addEventListener('change', () => setAt(path, input.value === 'true'));
       field.append(input);
     } else field.append(element('span', 'null-label', 'null（空値）'));
-    if (!isRoot) {
+    if (depth > 1) {
       const changeType = selectType(type);
       changeType.setAttribute('aria-label', `${label} の種類`);
       changeType.addEventListener('change', () => {
@@ -401,8 +432,7 @@ undoButtons.forEach(button => button.addEventListener('click', undo));
 document.querySelector('#import-button').addEventListener('click', () => { importError.textContent = ''; importInput.value = ''; importDialog.showModal(); });
 document.querySelector('#import-submit').addEventListener('click', () => {
   try {
-    const parsed = JSON.parse(importInput.value);
-    if (typeOf(parsed) !== 'object') throw new Error('一番外側は { } で囲まれたJSONオブジェクトにしてください。');
+    const parsed = fixedRootData(JSON.parse(importInput.value));
     recordHistory();
     data = parsed;
     collapsed = new Set();

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f8f7ff" />
+    <meta name="theme-color" content="#071d36" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'" />
     <meta name="description" content="スマホでAI画像生成用の告知画像プロンプトJSONを編集。データは端末内に保存されます。" />
     <title>sena-flyer-prompt | 告知画像プロンプトをかんたん編集</title>
@@ -28,7 +28,7 @@
 
         <section class="section editor-section" aria-labelledby="editor-heading">
           <div class="section-heading">
-            <div><span class="section-kicker">01 / EDIT</span><h2 id="editor-heading">内容を編集</h2><p>文字や「✎ 編集」付きの項目名をタップして変更。項目や行も自由に増やせます。</p></div>
+            <div><span class="section-kicker">01 / EDIT</span><h2 id="editor-heading">内容を編集</h2><p>上位6項目は固定です。値や中の項目は編集・追加できます。</p></div>
           </div>
           <div class="toolbar">
             <button id="import-button" type="button" class="button button-secondary">↥ JSONを読み込む</button>
@@ -56,9 +56,9 @@
     <dialog id="import-dialog" class="import-dialog" aria-labelledby="import-title">
       <form method="dialog" class="dialog-inner">
         <div class="dialog-heading"><div><span class="section-kicker">IMPORT JSON</span><h2 id="import-title">JSONを読み込む</h2></div><button type="submit" class="icon-button" aria-label="閉じる">×</button></div>
-        <p>JSONを貼り付けると、上の編集内容を置き換えます。読み込み直後は「戻す」で前の内容に戻せます。</p>
+        <p>JSONを貼り付けると、上の編集内容を置き換えます。上位6項目が揃ったJSONを読み込めます。読み込み直後は「戻す」で前の内容に戻せます。</p>
         <label for="import-input" class="field-label">JSONテキスト</label>
-        <textarea id="import-input" spellcheck="false" placeholder='{ "用途": "ライブ告知画像" }'></textarea>
+        <textarea id="import-input" spellcheck="false" placeholder='{ "用途": "ライブ告知画像", "タイトル": "...", "参考画像": {}, "デザイン": {}, "内容": [], "厳守": [] }'></textarea>
         <p id="import-error" class="import-error" role="alert"></p>
         <div class="dialog-actions"><button type="submit" class="button button-secondary">キャンセル</button><button id="import-submit" type="button" class="button button-primary">読み込む</button></div>
       </form>
