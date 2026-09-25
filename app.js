@@ -52,6 +52,8 @@ const importError = document.querySelector('#import-error');
 let data = structuredClone(DEFAULT_DATA);
 let collapsed = new Set();
 let toastTimer;
+const history = [];
+const undoButtons = [document.querySelector('#undo-button'), document.querySelector('#dock-undo-button')];
 
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -85,7 +87,28 @@ function getAt(path) {
   return path.reduce((current, part) => current[part], data);
 }
 
-function setAt(path, value) {
+function recordHistory() {
+  history.push({ data: JSON.stringify(data), collapsed: [...collapsed] });
+  if (history.length > 50) history.shift();
+  updateUndoButtons();
+}
+
+function updateUndoButtons() {
+  undoButtons.forEach(button => { button.disabled = history.length === 0; });
+}
+
+function undo() {
+  if (!history.length) return;
+  const previous = history.pop();
+  data = JSON.parse(previous.data);
+  collapsed = new Set(previous.collapsed);
+  updateUndoButtons();
+  commit(); render();
+  showToast('1つ前の操作に戻しました');
+}
+
+function setAt(path, value, saveHistory = true) {
+  if (saveHistory) recordHistory();
   if (path.length === 0) data = value;
   else getAt(path.slice(0, -1))[path.at(-1)] = value;
   commit();
@@ -182,6 +205,7 @@ function duplicate(path) {
   const parent = getAt(path.slice(0, -1));
   const part = path.at(-1);
   const copy = structuredClone(getAt(path));
+  recordHistory();
   if (Array.isArray(parent)) parent.splice(part + 1, 0, copy);
   else parent[uniqueKey(parent, part)] = copy;
   commit(); render(); showToast('複製しました');
@@ -189,6 +213,7 @@ function duplicate(path) {
 
 function remove(path) {
   const parent = getAt(path.slice(0, -1));
+  recordHistory();
   if (Array.isArray(parent)) parent.splice(path.at(-1), 1);
   else delete parent[path.at(-1)];
   commit(); render(); showToast('削除しました');
@@ -198,15 +223,39 @@ function addChild(path, type, keyInput) {
   const parent = getAt(path);
   if (Array.isArray(parent)) {
     const exemplar = parent[0];
+    recordHistory();
     parent.push(emptyValue(type, exemplar));
   } else {
     const key = keyInput.value.trim();
     if (!key) { showToast('項目名を入力してください'); keyInput.focus(); return; }
     if (Object.hasOwn(parent, key)) { showToast('同じ項目名があります'); keyInput.focus(); return; }
+    recordHistory();
     Object.defineProperty(parent, key, { value: emptyValue(type), writable: true, enumerable: true, configurable: true });
   }
   collapsed.delete(keyFor(path));
   commit(); render(); showToast('追加しました');
+}
+
+function move(path, direction) {
+  const parentPath = path.slice(0, -1);
+  const parent = getAt(parentPath);
+  const part = path.at(-1);
+  if (Array.isArray(parent)) {
+    const next = part + direction;
+    if (next < 0 || next >= parent.length) return;
+    recordHistory();
+    [parent[part], parent[next]] = [parent[next], parent[part]];
+    commit();
+  } else {
+    const keys = Object.keys(parent);
+    const index = keys.indexOf(part);
+    const next = index + direction;
+    if (next < 0 || next >= keys.length) return;
+    [keys[index], keys[next]] = [keys[next], keys[index]];
+    setAt(parentPath, Object.fromEntries(keys.map(key => [key, parent[key]])));
+  }
+  render();
+  showToast(direction < 0 ? '上へ移動しました' : '下へ移動しました');
 }
 
 function renderNode(value, path, label, depth, isRoot = false) {
@@ -229,11 +278,17 @@ function renderNode(value, path, label, depth, isRoot = false) {
 
   if (isRoot) header.append(element('span', 'node-title', 'プロンプト全体'));
   else if (typeof path.at(-1) === 'string') {
+    const keyEditor = element('label', 'key-editor');
     const keyInput = element('input', 'key-input');
     keyInput.value = label;
     keyInput.setAttribute('aria-label', `${label} の項目名`);
-    keyInput.addEventListener('change', () => renameKey(path, keyInput));
-    header.append(keyInput);
+    keyInput.title = 'タップして項目名を編集';
+    keyInput.addEventListener('blur', () => renameKey(path, keyInput));
+    keyInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); keyInput.blur(); }
+    });
+    keyEditor.append(keyInput, element('span', 'key-edit-icon', '✎ 編集'));
+    header.append(keyEditor);
   } else {
     let summary = label;
     if (type === 'object' && typeof value['会場'] === 'string') summary = `${label} · ${value['会場'] || '新しい会場'}`;
@@ -248,6 +303,16 @@ function renderNode(value, path, label, depth, isRoot = false) {
 
   if (!isRoot) {
     const actions = element('div', 'node-actions');
+    const parent = getAt(path.slice(0, -1));
+    const position = Array.isArray(parent) ? path.at(-1) : Object.keys(parent).indexOf(path.at(-1));
+    const siblingCount = Array.isArray(parent) ? parent.length : Object.keys(parent).length;
+    const up = action('↑', `${label}を上へ移動`, () => move(path, -1));
+    const down = action('↓', `${label}を下へ移動`, () => move(path, 1));
+    up.disabled = position === 0;
+    down.disabled = position === siblingCount - 1;
+    up.classList.add('move-action');
+    down.classList.add('move-action');
+    actions.append(up, down);
     actions.append(action('複製', `${label}を複製`, () => duplicate(path)));
     actions.append(action('コピー', `${label}のJSONをコピー`, () => copyText(JSON.stringify(getAt(path), null, 2))));
     actions.append(action('削除', `${label}を削除`, () => remove(path), true));
@@ -282,17 +347,26 @@ function renderNode(value, path, label, depth, isRoot = false) {
       input.rows = value.length > 85 ? 3 : 1;
       input.value = value;
       input.setAttribute('aria-label', `${label} の値`);
+      let editing = false;
       input.addEventListener('input', () => {
-        setAt(path, input.value);
+        if (!editing) { recordHistory(); editing = true; }
+        setAt(path, input.value, false);
         input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`;
       });
+      input.addEventListener('blur', () => { editing = false; });
       field.append(input);
       requestAnimationFrame(() => { if (input.isConnected) { input.style.height = 'auto'; input.style.height = `${input.scrollHeight}px`; } });
     } else if (type === 'number') {
       const input = element('input', 'value-input');
       input.type = 'number'; input.inputMode = 'decimal'; input.value = value;
       input.setAttribute('aria-label', `${label} の値`);
-      input.addEventListener('input', () => { if (input.value !== '') setAt(path, Number(input.value)); });
+      let editing = false;
+      input.addEventListener('input', () => {
+        if (input.value === '') return;
+        if (!editing) { recordHistory(); editing = true; }
+        setAt(path, Number(input.value), false);
+      });
+      input.addEventListener('blur', () => { editing = false; });
       field.append(input);
     } else if (type === 'boolean') {
       const input = element('select', 'value-input');
@@ -323,11 +397,13 @@ function render() {
 
 document.querySelector('#copy-button').addEventListener('click', () => copyText(output.textContent));
 document.querySelector('#dock-copy-button').addEventListener('click', () => copyText(output.textContent));
+undoButtons.forEach(button => button.addEventListener('click', undo));
 document.querySelector('#import-button').addEventListener('click', () => { importError.textContent = ''; importInput.value = ''; importDialog.showModal(); });
 document.querySelector('#import-submit').addEventListener('click', () => {
   try {
     const parsed = JSON.parse(importInput.value);
     if (typeOf(parsed) !== 'object') throw new Error('一番外側は { } で囲まれたJSONオブジェクトにしてください。');
+    recordHistory();
     data = parsed;
     collapsed = new Set();
     collapseScheduleRows();

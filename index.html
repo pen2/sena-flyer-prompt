@@ -15,8 +15,6 @@
       <header class="hero">
         <div class="hero-top"><span class="brand-mark">✦</span><span class="brand-name">sena-flyer-prompt</span></div>
         <div class="hero-content">
-          <div class="eyebrow">FOR YOUR NEXT FLYER</div>
-          <h1>告知画像のアイデアを、<br /><span>かんたんにJSONへ。</span></h1>
           <p>項目を編集するだけで、画像生成AIに渡すプロンプトを作れます。</p>
         </div>
         <div class="hero-glow" aria-hidden="true">✦</div>
@@ -30,10 +28,11 @@
 
         <section class="section editor-section" aria-labelledby="editor-heading">
           <div class="section-heading">
-            <div><span class="section-kicker">01 / EDIT</span><h2 id="editor-heading">内容を編集</h2><p>文字をタップして編集。項目や行は自由に増やせます。</p></div>
+            <div><span class="section-kicker">01 / EDIT</span><h2 id="editor-heading">内容を編集</h2><p>文字や「✎ 編集」付きの項目名をタップして変更。項目や行も自由に増やせます。</p></div>
           </div>
           <div class="toolbar">
             <button id="import-button" type="button" class="button button-secondary">↥ JSONを読み込む</button>
+            <button id="undo-button" type="button" class="button button-quiet" disabled>↶ 戻す</button>
             <button id="expand-button" type="button" class="button button-quiet">すべて開く</button>
             <button id="collapse-button" type="button" class="button button-quiet">すべて閉じる</button>
           </div>
@@ -57,7 +56,7 @@
     <dialog id="import-dialog" class="import-dialog" aria-labelledby="import-title">
       <form method="dialog" class="dialog-inner">
         <div class="dialog-heading"><div><span class="section-kicker">IMPORT JSON</span><h2 id="import-title">JSONを読み込む</h2></div><button type="submit" class="icon-button" aria-label="閉じる">×</button></div>
-        <p>JSONを貼り付けると、上の編集内容を置き換えます。現在の内容も自動保存されていますが、上書き後は元に戻せません。</p>
+        <p>JSONを貼り付けると、上の編集内容を置き換えます。読み込み直後は「戻す」で前の内容に戻せます。</p>
         <label for="import-input" class="field-label">JSONテキスト</label>
         <textarea id="import-input" spellcheck="false" placeholder='{ "用途": "ライブ告知画像" }'></textarea>
         <p id="import-error" class="import-error" role="alert"></p>
@@ -66,6 +65,7 @@
     </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <nav class="mobile-dock" aria-label="JSONへのショートカット">
+      <button id="dock-undo-button" type="button" class="button button-quiet" disabled>↶ 戻す</button>
       <a href="#output-heading" class="dock-link">完成JSONを見る</a>
       <button id="dock-copy-button" type="button" class="button button-primary">JSONをコピー</button>
     </nav>
