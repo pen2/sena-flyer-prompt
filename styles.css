@@ -57,12 +57,9 @@ body,.app-shell{background:#f4f8fe}
 .node-root>.node-body{margin-left:0;border-left:0;padding-left:12px;padding-right:12px}
 .node-root>.value-wrap{padding-left:12px}
 .node-root>.node-body>.node>.node-header{background:#f1f8ff}
-/* Fade section headers into the editing area instead of drawing a line against the input border. */
-.node-root>.node-header,.node-body>.node>.node-header,.node-root>.node-body>.node>.node-header{
-  border-bottom:0;
-  background-image:linear-gradient(to bottom,transparent calc(100% - 10px),#fff);
-}
-.node-root>.value-wrap,.node-body>.node>.value-wrap{padding-top:4px}
+.node-action{background:#deeffb;color:#225f88;box-shadow:inset 0 0 0 1px #beddf1}
+.node-action:hover{background:#cae6f8}
+.node-action.danger{background:#fff0f3;color:#a54d64;box-shadow:inset 0 0 0 1px #f2d3dd}
 @media(max-width:680px){
   :root,body{background:#071d36}
   .app-shell{background:#f4f8fe}
