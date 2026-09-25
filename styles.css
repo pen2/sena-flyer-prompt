@@ -54,9 +54,13 @@ main{padding:0 20px 36px}
 body,.app-shell{background:#f4f8fe}
 .fixed-title{display:flex;align-items:center;gap:8px;min-width:0}
 .fixed-title::after{content:'固定';font-size:10px;font-weight:700;color:#497996;background:#e5f3ff;border-radius:6px;padding:3px 6px}
+.node-root>.node-body{margin-left:0;border-left:0;padding-left:12px;padding-right:12px}
+.node-root>.value-wrap{padding-left:12px}
 .node-root>.node-body>.node>.node-header{background:#f1f8ff}
 @media(max-width:680px){
   :root,body{background:#071d36}
   .app-shell{background:#f4f8fe}
   .hero{padding-top:calc(18px + env(safe-area-inset-top))}
+  .node-root>.node-body{padding-left:7px;padding-right:7px}
+  .node-root>.value-wrap{padding-left:7px}
 }

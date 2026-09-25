@@ -281,10 +281,10 @@ function move(path, direction) {
   showToast(direction < 0 ? '上へ移動しました' : '下へ移動しました');
 }
 
-function renderNode(value, path, label, depth, isRoot = false) {
+function renderNode(value, path, label, depth) {
   const type = typeOf(value);
   const fixedRoot = depth === 1 && ROOT_KEYS.includes(path[0]);
-  const container = element('div', `node node-${type}${isRoot ? ' node-root' : ''}`);
+  const container = element('div', `node node-${type}${depth === 1 ? ' node-root' : ''}`);
   const header = element('div', 'node-header');
   container.append(header);
 
@@ -300,8 +300,7 @@ function renderNode(value, path, label, depth, isRoot = false) {
     header.append(element('span', 'node-spacer'));
   }
 
-  if (isRoot) header.append(element('span', 'node-title', 'プロンプト全体'));
-  else if (fixedRoot) header.append(element('span', 'node-title fixed-title', label));
+  if (fixedRoot) header.append(element('span', 'node-title fixed-title', label));
   else if (typeof path.at(-1) === 'string') {
     const keyEditor = element('label', 'key-editor');
     const keyInput = element('input', 'key-input');
@@ -354,21 +353,19 @@ function renderNode(value, path, label, depth, isRoot = false) {
       const entries = type === 'array' ? value.map((item, index) => [index, item]) : Object.entries(value);
       entries.forEach(([key, child]) => body.append(renderNode(child, [...path, key], type === 'array' ? `${key + 1}番目` : key, depth + 1)));
       if (entries.length === 0) body.append(element('p', 'empty-hint', 'まだ中身がありません。下から追加できます。'));
-      if (!isRoot) {
-        const add = element('div', 'add-row');
-        const defaultType = type === 'array' && value.length ? typeOf(value[0]) : 'string';
-        const typeSelect = selectType(defaultType);
-        let keyInput;
-        if (type === 'object') {
-          keyInput = element('input', 'add-key');
-          keyInput.placeholder = '新しい項目名';
-          keyInput.setAttribute('aria-label', '新しい項目名');
-          add.append(keyInput);
-        }
-        add.append(typeSelect);
-        add.append(action('＋ 追加', '項目を追加', () => addChild(path, typeSelect.value, keyInput)));
-        body.append(add);
+      const add = element('div', 'add-row');
+      const defaultType = type === 'array' && value.length ? typeOf(value[0]) : 'string';
+      const typeSelect = selectType(defaultType);
+      let keyInput;
+      if (type === 'object') {
+        keyInput = element('input', 'add-key');
+        keyInput.placeholder = '新しい項目名';
+        keyInput.setAttribute('aria-label', '新しい項目名');
+        add.append(keyInput);
       }
+      add.append(typeSelect);
+      add.append(action('＋ 追加', '項目を追加', () => addChild(path, typeSelect.value, keyInput)));
+      body.append(add);
       container.append(body);
     }
   } else {
@@ -422,7 +419,7 @@ function renderNode(value, path, label, depth, isRoot = false) {
 }
 
 function render() {
-  editor.replaceChildren(renderNode(data, [], '全体', 0, true));
+  editor.replaceChildren(...Object.entries(data).map(([key, value]) => renderNode(value, [key], key, 1)));
   output.textContent = JSON.stringify(data, null, 2);
 }
 
