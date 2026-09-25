@@ -203,7 +203,7 @@ function addChild(path, type, keyInput) {
     const key = keyInput.value.trim();
     if (!key) { showToast('項目名を入力してください'); keyInput.focus(); return; }
     if (Object.hasOwn(parent, key)) { showToast('同じ項目名があります'); keyInput.focus(); return; }
-    parent[key] = emptyValue(type);
+    Object.defineProperty(parent, key, { value: emptyValue(type), writable: true, enumerable: true, configurable: true });
   }
   collapsed.delete(keyFor(path));
   commit(); render(); showToast('追加しました');
@@ -322,6 +322,7 @@ function render() {
 }
 
 document.querySelector('#copy-button').addEventListener('click', () => copyText(output.textContent));
+document.querySelector('#dock-copy-button').addEventListener('click', () => copyText(output.textContent));
 document.querySelector('#import-button').addEventListener('click', () => { importError.textContent = ''; importInput.value = ''; importDialog.showModal(); });
 document.querySelector('#import-submit').addEventListener('click', () => {
   try {
@@ -329,6 +330,7 @@ document.querySelector('#import-submit').addEventListener('click', () => {
     if (typeOf(parsed) !== 'object') throw new Error('一番外側は { } で囲まれたJSONオブジェクトにしてください。');
     data = parsed;
     collapsed = new Set();
+    collapseScheduleRows();
     commit(); render(); importDialog.close(); showToast('JSONを読み込みました');
     document.querySelector('#editor-heading').scrollIntoView({ behavior: 'smooth' });
   } catch (error) {
